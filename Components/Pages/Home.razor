@@ -1,0 +1,125 @@
+﻿@page "/"
+@using Microsoft.Extensions.Options
+@rendermode InteractiveServer
+@using BlazorDateRangePicker
+@using PDFArchiveViewer.Services
+@inject IOptionsMonitor<AppSettings> Options
+@inject PDFSearchService SearchService
+@using BlazorBootstrap
+
+
+
+<PageTitle>@Settings.SiteTitle</PageTitle>
+
+@* @inject getPDF PDFService *@
+
+    <select @bind="category" @bind:after="LoadResults">
+        <option value="">Select a Category...</option>
+        @foreach (var folder in SearchService.GetCategories().OrderBy(Settings.GetDisplayName))
+        {
+            <option value="@folder">@Settings.GetDisplayName(folder)</option>
+        }
+
+    </select>
+
+        <DateRangePicker AutoApply="true"
+                         MinDate="DateTimeOffset.Now.AddYears(-150)" 
+                         MaxDate="DateTimeOffset.Now"                         
+                         OnRangeSelect="OnRangeSelect"
+                         placeholder="Select dates..." />
+
+
+
+
+@if (results is not null)
+{
+    @if (results.Count == 0)
+    {
+                        <p>No PDFs found for @Settings.GetDisplayName(category!) in that date range. Try a wider range.</p>
+    }
+    else
+    {
+                <Grid TItem="KeyValuePair<DateOnly, string>"
+                      Class="table table-hover table-striped pdf-grid"
+                      Data="results"
+                      AllowPaging="true"
+                      PageSize="5"
+                      AllowSorting="true"
+                      Responsive="true">
+                    <GridColumns>
+                        <GridColumn TItem="KeyValuePair<DateOnly, string>" HeaderText="Date" PropertyName="Key" SortKeySelector="item => item.Key">
+                    @context.Key
+                        </GridColumn>
+                        <GridColumn TItem="KeyValuePair<DateOnly, string>" HeaderText="File">
+                    @* pass this row's date so the modal knows which PDF to show *@
+                            <Button Color="ButtonColor.Primary" Size="ButtonSize.Small" @onclick="() => OnShowModalClick(context.Key)">View PDF</Button>
+                        </GridColumn>
+                    </GridColumns>
+                </Grid>
+    }
+}
+
+@* one modal for the whole page, outside the @if so the @ref always exists *@
+<Modal @ref="modal"        Title="@(category is null ? "" : $"{Settings.GetDisplayName(category)} {selectedDate}")" Size="ModalSize.ExtraLarge">
+    <BodyTemplate>
+        @if (selectedDate is not null)
+        {
+                <iframe src="@($"/pdf/{Uri.EscapeDataString(category!)}/{selectedDate.Value:yyyyMMdd}")"
+                        style="width: 100%; height: 75vh; border: 0;" title="PDF viewer"></iframe>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="OnHideModalClick">Close</Button>
+    </FooterTemplate>
+</Modal>
+
+
+
+
+
+
+@code {
+    private AppSettings Settings => Options.CurrentValue;
+
+
+    private string? category;
+    private DateOnly? from;
+    private DateOnly? to;
+    private IReadOnlyList<KeyValuePair<DateOnly, string>>? results;
+
+
+    private void OnRangeSelect(DateRange range)
+    {
+        from = DateOnly.FromDateTime(range.Start.DateTime);
+        to = DateOnly.FromDateTime(range.End.DateTime);
+        LoadResults();
+    }
+
+    private void LoadResults()
+    {
+        // wait until both a category and a date range have been picked
+        if (string.IsNullOrEmpty(category) || from is null || to is null)
+        {
+            results = null;
+            return;
+        }
+        Console.WriteLine($"Searching '{category}' from {from} to {to}");
+        Console.WriteLine($"Index has: {string.Join(", ", SearchService.GetCategories())}");
+        results = SearchService.FindFiles(category, from.Value, to.Value);
+    }
+
+    private Modal modal = default!;
+
+    private DateOnly? selectedDate;
+
+    private async Task OnShowModalClick(DateOnly date)
+    {
+        selectedDate = date;
+        await modal.ShowAsync();
+    }
+
+    private async Task OnHideModalClick()
+    {
+        await modal.HideAsync();
+    }
+}
