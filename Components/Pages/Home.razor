@@ -11,7 +11,6 @@
 
 <PageTitle>@Settings.SiteTitle</PageTitle>
 
-@* @inject getPDF PDFService *@
 
     <select @bind="category" @bind:after="LoadResults">
         <option value="">Select a Category...</option>
@@ -27,7 +26,6 @@
                          MaxDate="DateTimeOffset.Now"                         
                          OnRangeSelect="OnRangeSelect"
                          placeholder="Select dates..." />
-
 
 
 
@@ -86,6 +84,7 @@
     private DateOnly? from;
     private DateOnly? to;
     private IReadOnlyList<KeyValuePair<DateOnly, string>>? results;
+
 
 
     private void OnRangeSelect(DateRange range)
