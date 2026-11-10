@@ -6,7 +6,7 @@ namespace PDFArchiveViewer.Services
     {
         [Required(ErrorMessage = "ArchiveRootFolder is missing or empty in appsettings.json")]
         public string ArchiveRootFolder { get; set; } = "";
-        public string Format { get; set; } = "";
+        public string Format { get; set; } = "yyyyMMdd";
 
         public string SiteTitle { get; set; } = "Archive Viewer";
         public string SiteImage { get; set; } = "";

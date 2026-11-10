@@ -10,27 +10,32 @@ namespace PDFArchiveViewer.Services
         private AppSettings Settings => settings.CurrentValue;
 
 
-        private FrozenDictionary<string, FrozenDictionary<DateOnly, string>> _index = FrozenDictionary<string, FrozenDictionary<DateOnly, string>>.Empty;
+        //private FrozenDictionary<string, FrozenDictionary<DateOnly, string>> _index = FrozenDictionary<string, FrozenDictionary<DateOnly, string>>.Empty;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            Console.WriteLine("PDFSearchService starting...");
-            await Task.Run(Build, stoppingToken);   // runs off the startup thread so it doesn't block the app
-            Console.WriteLine("PDFSearchService finished building index.");
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                bool ok = await Task.Run(Build, stoppingToken);
+                await Task.Delay(ok ? TimeSpan.FromHours(24) : TimeSpan.FromMinutes(5), stoppingToken); // if works, scan again 24 hours, if not try to find it again in 5 minutes
+            }
         }
 
 
-        // Does at startup, scans all the pdfs and puts them into memory
-        public void Build()
+        // Scans all the pdfs and puts them into memory
+        public bool Build()
         {
             string path = Settings.GetRootPath();
             string format = Settings.Format;
 
-            try
-            {
-                if (Directory.Exists(path))
+
+            if (!Directory.Exists(path))
                 {
-                    Console.WriteLine($"Listing directories in: {path}");
+                    Console.WriteLine("Archive path is unreachable or access was denied");
+                    return false;
+                }
+            try
+                {
 
                     var directories = Directory.EnumerateDirectories(path);
 
@@ -64,26 +69,15 @@ namespace PDFArchiveViewer.Services
                     }
                     // last thing: hand the finished index to the shared store
                     store.Replace(PDFIndex.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
+                return true;
                 }
-                else
-                {
-                    Console.WriteLine($"UNC path could not be reached");
-
-                }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                Console.WriteLine("Error: You do not have permission to access this network path.");
-            }
-            catch (IOException ex)
-            {
-                Console.WriteLine($"Network or I/O error occurred: {ex.Message}");
-            }
-
+            catch (UnauthorizedAccessException) { Console.WriteLine("Error: You do not have permission to access this network path."); return false; }
+            catch (IOException ex) { Console.WriteLine($"Network or I/O error occurred: {ex.Message}"); return false; }
+            catch (Exception ex) { Console.WriteLine($"Error: {ex.Message}"); return false; }
         }
 
 
 
-
+      
     }
 }

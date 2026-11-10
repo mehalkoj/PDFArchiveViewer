@@ -22,8 +22,6 @@ builder.Services.AddOptions<AppSettings>()
     .ValidateDataAnnotations()
     .ValidateOnStart();   // app refuses to start if ArchiveRootFolder is blank
 
-builder.Services.AddSingleton<PDFIndexStore>();
-builder.Services.AddHostedService<BuildPDFIndex>();
 
 
 var app = builder.Build();
